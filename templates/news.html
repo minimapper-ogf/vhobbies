@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block content %}<h1>News</h1>
+{% for n in items %}<article class="news"><h3>{{ n.title }}</h3><small>{{ n.created[:10] }}</small>
+{% if n.images %}<div class="news-images">{% for p in n.images %}<img class="pic" src="{{ url_for('static', filename='uploads/' + p) }}" alt="">{% endfor %}</div>{% endif %}<p class="pre">{{ n.body }}</p></article>
+{% else %}<p class="muted">No news yet.</p>{% endfor %}{% endblock %}

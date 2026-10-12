@@ -1,0 +1,14 @@
+{% extends 'base.html' %}{% block content %}{% include 'admin/_nav.html' %}
+<h2>Add a race day</h2>
+<form class="panel" method="post" action="{{ url_for('admin.upload_day') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label>Zip of the race day folder (the one containing the "html" folder)</label><input type="file" name="zipfile" accept=".zip" required>
+<label>Type</label><select name="day_type"><option value="offroad">Offroad</option><option value="oval">Oval</option></select>
+<label>Date (leave blank to read it from the zip name, like "7 SEP 2026.zip")</label><input type="date" name="race_date">
+<p><button>Import</button></p></form>
+<h2>Existing race days</h2>
+<table class="grid"><thead><tr><th>Date</th><th>Type</th><th>Classes</th><th>Results</th><th>Fix date / type</th><th></th></tr></thead><tbody>
+{% for d in rows %}<tr><td><a href="{{ url_for('day', did=d.id) }}">{{ d.race_date }}</a></td><td>{{ d.day_type }}</td><td>{{ d.classes }}</td><td>{{ d.results }}</td>
+<td><form class="inline" method="post" action="{{ url_for('admin.edit_day', did=d.id) }}"><input type="hidden" name="csrf" value="{{ csrf }}">
+<input type="date" name="race_date" value="{{ d.race_date }}" required> <select name="day_type" style="display:inline"><option {{ 'selected' if d.day_type=='offroad' }}>offroad</option><option {{ 'selected' if d.day_type=='oval' }}>oval</option></select> <button>Save</button></form></td>
+<td><form class="inline" method="post" action="{{ url_for('admin.delete_day', did=d.id) }}" onsubmit="return confirm('Delete {{ d.race_date }} and all its results?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Delete</button></form></td></tr>
+{% else %}<tr><td colspan="6" class="muted">No race days yet.</td></tr>{% endfor %}</tbody></table>{% endblock %}

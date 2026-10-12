@@ -1,0 +1,50 @@
+{% extends 'base.html' %}{% block title %}{{ name }} - {{ cfg.SITE_NAME }}{% endblock %}{% block content %}
+<p class="crumb"><a href="{{ url_for('drivers') }}">&larr; All drivers</a></p>
+<div class="who">{% if photo %}<img class="avatar" src="{{ url_for('static', filename='uploads/drivers/' + photo) }}" alt="{{ name }}">{% endif %}<h1>{{ name }}</h1></div>
+<details class="suggest"><summary>Help improve this profile (suggest full name / add photo)</summary>
+<div class="panel"><form method="post" action="{{ url_for('submit_name') }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="driver" value="{{ name }}">
+<div class="hp"><input name="website" tabindex="-1" autocomplete="off"></div>
+<label>Suggest a full name for "{{ name }}"</label><input type="text" name="suggested" maxlength="60" required><p><button>Send for review</button></p></form>
+<form method="post" action="{{ url_for('submit_photo') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="driver" value="{{ name }}">
+<div class="hp"><input name="website" tabindex="-1" autocomplete="off"></div>
+<label>Photo (JPG, PNG or WebP, up to 5 MB)</label><input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required><p><button>Send for review</button></p></form>
+<p class="muted">Submissions are reviewed before they appear on the site.</p></div></details>
+<div class="stats">
+  <div class="stat"><b>{{ s.days }}</b><span>Race days</span></div>
+  <div class="stat"><b>{{ s.laps }}</b><span>Laps recorded</span></div>
+  <div class="stat"><b>{{ s.avg|lap }}</b><span>Overall avg lap (s)</span></div>
+  <div class="stat"><b>{{ s.best|lap }}</b><span>Best lap (s)</span></div>
+  <div class="stat"><b>{{ s.wins }}</b><span>Final wins</span></div>
+  <div class="stat"><b>{{ s.podiums }}</b><span>Final podiums</span></div>
+</div>
+
+<h2>Chart</h2>
+<div class="controls">
+  <label>View <select id="mode"><option value="time">Race day by race day</option><option value="vehicle">By vehicle (overall)</option></select></label>
+  <label>Show <select id="metric">{% for k, v in metrics.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+  <label>Days <select id="type"><option value="all">Oval + Offroad</option><option value="offroad">Offroad only</option><option value="oval">Oval only</option></select></label>
+  <label>Style <select id="ctype"><option value="line">Line</option><option value="column">Columns</option></select></label>
+</div>
+<div id="chart" class="highcharts-light"></div>
+<p class="muted">Each point is one race day, evenly spaced. Vertical lines mark track changes entered by the admin.</p>
+
+<h2>By vehicle (all days)</h2>
+<div class="scroll"><table class="grid"><thead><tr><th>Vehicle</th><th>Type</th><th>Days</th><th>Laps</th><th>Avg lap</th><th>Median lap</th><th>Best lap</th><th>Std dev</th><th>Avg heat pos</th><th>Avg qual pos</th><th>Avg final pos</th><th>Wins</th><th>Podiums</th></tr></thead><tbody>
+{% for v in veh %}<tr><td><b>{{ v.cls|title }}</b></td><td>{{ v.type }}</td><td>{{ v.days }}</td><td>{{ v.laps }}</td><td>{{ v.avg_lap|lap }}</td><td>{{ v.median_lap|lap }}</td><td>{{ v.best_lap|lap }}</td><td>{{ v.stdev|lap }}</td>
+<td>{{ '%.2f'|format(v.avg_heat_pos) if v.avg_heat_pos else '-' }}</td><td>{{ '%.2f'|format(v.qual_pos) if v.qual_pos else '-' }}</td><td>{{ '%.2f'|format(v.final_pos) if v.final_pos else '-' }}</td><td>{{ v.wins }}</td><td>{{ v.podiums }}</td></tr>{% endfor %}
+</tbody></table></div>
+
+<h2>Race day log</h2>
+<div class="scroll"><table class="grid"><thead><tr><th>Date</th><th>Type</th><th>Drove</th><th>Car #</th><th>Avg heat pos</th><th>Qual</th><th>Final grp</th><th>Final pos</th><th>Avg lap</th><th>Median</th><th>Best lap</th><th>Std dev</th><th>Laps</th></tr></thead><tbody>
+{% for e in entries %}<tr><td><a href="{{ url_for('day', did=e.day_id, **{'class': e.cls}) }}">{{ e.date }}</a></td><td>{{ e.type }}</td><td>{{ e.cls|title }}</td><td>{{ e.cars|sort|join(', ') }}</td>
+<td>{{ '%.2f'|format(e.avg_heat_pos) if e.avg_heat_pos else '-' }}</td><td>{{ e.qual_pos or '-' }}</td><td>{{ e.group or '-' }}</td><td>{{ e.final_pos or '-' }}</td>
+<td>{{ e.avg_lap|lap }}</td><td>{{ e.median_lap|lap }}</td><td>{{ e.best_lap|lap }}</td><td>{{ e.stdev|lap }}</td><td>{{ e.laps }}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="muted">Lap times in seconds. Positions: qual = standing after the heat rounds, final pos = overall finish after the finals (A and B combined).</p>
+{% endblock %}
+{% block scripts %}
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="{{ url_for('static', filename='js/chart_theme.js') }}"></script>
+<script>window.DRV = {name: {{ name|tojson }}};</script>
+<script src="{{ url_for('static', filename='js/driver_chart.js') }}"></script>
+{% endblock %}

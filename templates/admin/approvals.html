@@ -1,0 +1,18 @@
+{% extends 'base.html' %}{% block content %}{% include 'admin/_nav.html' %}
+<h2>Name suggestions ({{ names|length }})</h2>
+{% for s in names %}<div class="panel"><b>{{ s.driver_name }}</b> &rarr; <b>{{ s.suggested }}</b> <small class="muted">{{ s.created }}</small>
+{% if s.merge_days %}<div class="flash error">A driver named "{{ s.suggested }}" already exists ({{ s.merge_days }} race day(s)). Approving will merge them into one profile.</div>{% endif %}
+<form class="inline" method="post" action="{{ url_for('admin.decide_name', sid=s.id, action='approve') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Approve</button></form>
+<form class="inline" method="post" action="{{ url_for('admin.decide_name', sid=s.id, action='deny') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Deny</button></form></div>
+{% else %}<p class="muted">Nothing waiting.</p>{% endfor %}
+<h2>Photos ({{ photos|length }})</h2>
+{% for p in photos %}<div class="panel"><b>{{ p.driver_name }}</b> <small class="muted">{{ p.created }}</small>
+<div class="pair"><div>New<br><img src="{{ url_for('admin.pending_photo', fn=p.filename) }}" alt=""></div>
+{% if p.current %}<div>Current<br><img src="{{ url_for('static', filename='uploads/drivers/' + p.current) }}" alt=""></div>{% endif %}</div>
+<form class="inline" method="post" action="{{ url_for('admin.decide_photo', pid=p.id, action='approve') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Approve{{ ' (replaces current)' if p.current }}</button></form>
+<form class="inline" method="post" action="{{ url_for('admin.decide_photo', pid=p.id, action='deny') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Deny</button></form></div>
+{% else %}<p class="muted">Nothing waiting.</p>{% endfor %}
+<h2>Live driver photos</h2>
+{% for c in current %}<div class="panel pair"><img src="{{ url_for('static', filename='uploads/drivers/' + c.filename) }}" alt=""><b>{{ c.driver_name }}</b>
+<form class="inline" method="post" action="{{ url_for('admin.remove_photo') }}" onsubmit="return confirm('Remove this photo?')"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="driver_name" value="{{ c.driver_name }}"><button class="danger">Remove</button></form></div>
+{% else %}<p class="muted">No photos yet.</p>{% endfor %}{% endblock %}

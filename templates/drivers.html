@@ -1,0 +1,44 @@
+{% extends 'base.html' %}{% block content %}<h1>Drivers</h1>
+<form class="controls" action="{{ url_for('drivers') }}"><label>Search by name<input name="q" value="{{ term }}" autofocus style="font:inherit;padding:5px 8px;border:1px solid var(--line);display:block"></label><button>Search</button></form>
+{% if rows %}
+<table class="grid">
+  <thead>
+    <tr>
+      <th style="cursor: pointer;" title="Click to sort">Driver ↕</th>
+      <th style="cursor: pointer;" title="Click to sort">Race days ↕</th>
+      <th style="cursor: pointer;" title="Click to sort">Classes ↕</th>
+      <th style="cursor: pointer;" title="Click to sort">Best lap ↕</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><a href="{{ url_for('driver', name=r.name) }}">{{ r.name }}</a></td>
+      <td>{{ r.days }}</td>
+      <td>{{ r.classes|replace(',', ', ') }}</td>
+      <td>{{ r.best|lap }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+    const comparer = (idx, asc) => (a, b) => ((v1, v2) =>
+        v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2) ? v1 - v2 : v1.toString().localeCompare(v2)
+    )(getCellValue(asc ? a : b, idx), getCellValue(asc ? b : a, idx));
+
+    document.querySelectorAll('table.grid th').forEach(th => {
+        th.addEventListener('click', () => {
+            const table = th.closest('table');
+            const tbody = table.querySelector('tbody');
+            Array.from(tbody.querySelectorAll('tr'))
+                .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc))
+                .forEach(tr => tbody.appendChild(tr));
+        });
+    });
+});
+</script>
+{% else %}<p class="muted">No drivers found{% if term %} for "{{ term }}"{% endif %}.</p>{% endif %}
+{% endblock %}

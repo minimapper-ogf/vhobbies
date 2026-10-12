@@ -1,0 +1,39 @@
+{% extends 'base.html' %}{% block content %}
+<p class="crumb"><a href="{{ url_for('history', type=day.day_type) }}">&larr; {{ day.day_type|title }} history</a></p>
+<h1>{{ day.race_date }} <span class="tag">{{ day.day_type }}</span></h1>
+{% if not classes %}<p class="muted">No results stored for this day.</p>{% else %}
+<div class="tabs">{% for c in classes %}<a class="{{ 'on' if c==cls }}" href="?class={{ c|urlencode }}">{{ c|title }}</a>{% endfor %}</div>
+
+<h2>Chart</h2>
+<div class="controls">
+  <label>View <select id="mode"><option value="rounds">By round</option><option value="laps">Lap by lap</option></select></label>
+  <label id="metricBox">Show <select id="metric">
+    <option value="avg_lap">Average lap</option><option value="fastest_lap">Fastest lap</option>
+    <option value="total_time">Total time</option><option value="laps">Laps completed</option><option value="position">Position</option></select></label>
+  <label id="roundBox" hidden>Race <select id="round">
+    {% for r in rounds %}<option value="{{ r }}">Round {{ r }}</option>{% endfor %}<option value="final" selected>Final</option></select></label>
+  <label>Style <select id="ctype"><option value="line">Line</option><option value="column">Columns</option></select></label>
+  <button id="allbtn" type="button">Hide all</button>
+</div>
+<div id="chart" class="highcharts-light"></div>
+
+<h2>{{ cls|title }} breakdown</h2>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Final</th><th>Driver</th><th>Qual.</th>
+{% for r in rounds %}<th>R{{ r }} avg</th>{% endfor %}<th>Final grp</th><th>Final laps</th><th>Final time</th><th>Final avg</th><th>Final best</th>
+<th>Day avg lap</th><th>Median lap</th><th>Best lap</th><th>Std dev</th><th>Total laps</th></tr></thead><tbody>
+{% for d in drivers %}<tr>
+ <td>{{ d.fin.position if d.fin else '-' }}</td><td><b><a href="{{ url_for('driver', name=d.name) }}">{{ d.name }}</a></b></td><td>{{ d.qual.position if d.qual else '-' }}</td>
+ {% for r in rounds %}<td>{{ d.rounds[r].avg_lap|lap if r in d.rounds else '-' }}</td>{% endfor %}
+ <td>{{ d.final.final_group if d.final else '-' }}</td><td>{{ d.final.laps if d.final else '-' }}</td>
+ <td>{{ d.final.total_time|t if d.final else '-' }}</td><td>{{ d.final.avg_lap|lap if d.final else '-' }}</td><td>{{ d.final.fastest_lap|lap if d.final else '-' }}</td>
+ <td>{{ d.avg|lap }}</td><td>{{ d.median|lap }}</td><td>{{ d.best|lap }}</td><td>{{ d.stdev|lap }}</td><td>{{ d.all_laps }}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="muted">Lap times are in seconds. "Day avg lap" averages every lap the driver ran in this class that day; median ignores stalls and crashes. Qual. = standing after the heat rounds (best round).</p>
+{% endif %}{% endblock %}
+{% block scripts %}{% if classes %}
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="{{ url_for('static', filename='js/chart_theme.js') }}"></script>
+<script>window.CHART = {day: {{ day.id }}, cls: {{ cls|tojson }}};</script>
+<script src="{{ url_for('static', filename='js/day_chart.js') }}"></script>
+{% endif %}{% endblock %}

@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block content %}{% include 'admin/_nav.html' %}
+<div class="stats">
+ <div class="stat"><b>{{ stats.days }}</b><span>Race days</span></div><div class="stat"><b>{{ stats.drivers }}</b><span>Drivers</span></div>
+ <div class="stat"><b>{{ stats.results }}</b><span>Race results</span></div><div class="stat"><b>{{ stats.laps }}</b><span>Laps</span></div></div>
+<p class="muted">Use the tabs above. More tools (photos, name edits, news, track events, home page) will appear here as they are added.</p>{% endblock %}

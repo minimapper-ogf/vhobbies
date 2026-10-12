@@ -1,0 +1,10 @@
+{% extends 'base.html' %}{% block content %}{% include 'admin/_nav.html' %}
+<form class="panel" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label>Headline</label><input type="text" name="home_title" maxlength="120" value="{{ v.home_title }}" placeholder="Welcome to Village Hobbies Racing">
+<label>Introduction</label><textarea name="home_intro" rows="6" style="max-width:700px">{{ v.home_intro }}</textarea>
+<label>Extra info box (hours, address, race schedule... optional)</label><textarea name="home_info" rows="4" style="max-width:700px">{{ v.home_info }}</textarea>
+<h3>Home page image (one image)</h3>
+{% set p = v.home_photo_1 %}<div class="pair" style="margin:8px 0"><b>Photo</b>
+{% if p %}<img src="{{ url_for('static', filename='uploads/' + p) }}" alt=""><label style="display:inline"><input type="checkbox" name="remove1"> Remove</label>{% endif %}
+<input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></div>
+<p><button>Save home page</button> <a href="{{ url_for('home') }}" target="_blank">View home page</a></p></form>{% endblock %}

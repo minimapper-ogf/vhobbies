@@ -1,0 +1,3 @@
+<h1>Admin</h1>
+<div class="adminnav">{% for ep, label in sections %}<a class="{{ 'on' if current==ep }}" href="{{ url_for(ep) }}">{{ label }}{% if ep=='admin.approvals' and pending_count %}<span class="badge">{{ pending_count }}</span>{% endif %}</a>{% endfor %}
+<form class="inline" method="post" action="{{ url_for('admin.logout') }}" style="margin-left:auto"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Log out</button></form></div>

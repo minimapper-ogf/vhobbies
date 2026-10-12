@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% block content %}
+<section class="hero">
+  <h1>{{ content('home_title', 'Welcome to Village Hobbies Racing') }}</h1>
+  <p class="pre">{{ content('home_intro', 'Welcome! Add an introduction to the track from Admin, then Home page.') }}</p>
+</section>
+{% set p = content('home_photo_1') %}
+{% if p %}<section class="home-photo"><img src="{{ url_for('static', filename='uploads/' + p) }}" alt=""></section>{% endif %}
+{% if content('home_info') %}<section class="hero"><p class="pre">{{ content('home_info') }}</p></section>{% endif %}
+<section>
+  <h2>Latest news</h2>
+  {% for n in news %}
+    <article class="news"><h3>{{ n.title }}</h3><small>{{ n.created[:10] }}</small>
+    {% if n.images %}<div class="news-images">{% for p in n.images %}<img class="pic" src="{{ url_for('static', filename='uploads/' + p) }}" alt="">{% endfor %}</div>{% endif %}<p class="pre">{{ n.body }}</p></article>
+  {% else %}<p class="muted">No news yet.</p>{% endfor %}
+  <p><a href="{{ url_for('news') }}">All news &rarr;</a></p>
+</section>
+{% endblock %}
