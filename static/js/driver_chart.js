@@ -9,7 +9,7 @@
       xAxis: {categories: d.categories, plotLines: (d.plotLines || []).map(l => ({value: l.value, color: '#c0392b', width: 2, dashStyle: 'Dash', zIndex: 4,
               label: {text: l.text, rotation: 90, textAlign: 'left', style: {color: '#c0392b', fontSize: '11px'}}}))},
       yAxis: {title: {text: d.yTitle}, reversed: d.reversed, allowDecimals: !d.integer},
-      tooltip: {valueDecimals: d.integer ? 0 : 3},
+      tooltip: {shared: true, crosshairs: true, valueDecimals: d.integer ? 0 : 3},
       plotOptions: {series: {connectNulls: true, animation: false}},
       legend: {enabled: d.series.length > 1},
       series: d.series
