@@ -1,14 +1,15 @@
 """Admin panel. Add new admin pages by writing a route here and adding it to SECTIONS."""
-import os, re, sqlite3, tempfile, zipfile, hmac, secrets, time, shutil
-from datetime import datetime
+import math, os, re, sqlite3, tempfile, zipfile, hmac, secrets, time, shutil
+from datetime import date, datetime
 from functools import wraps
 from pathlib import PurePosixPath
 from flask import send_from_directory, Blueprint, render_template, request, redirect, url_for, session, flash, abort, g
 import config, importer
+from race_stats import RESULT_NAME, RESULT_JOIN, EOR_NAME, EOR_JOIN, lap_minimums
 from images import save_public_image, delete_public_image
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
-SECTIONS = [('admin.dashboard', 'Dashboard'), ('admin.days', 'Race days'), ('admin.approvals', 'Approvals'), ('admin.names', 'Driver names'), ('admin.news', 'News'), ('admin.events', 'Track events'), ('admin.home', 'Home page')]   # later parts append here
+SECTIONS = [('admin.dashboard', 'Dashboard'), ('admin.days', 'Race days'), ('admin.approvals', 'Approvals'), ('admin.names', 'Driver names'), ('admin.lap_settings', 'Lap settings'), ('admin.news', 'News'), ('admin.events', 'Track events'), ('admin.home', 'Home page')]   # later parts append here
 
 def adb():
     if 'adb' not in g:
@@ -23,15 +24,16 @@ def init(app):
         d = g.pop('adb', None)
         if d: d.close()
 
-def configured():
-    return config.ADMIN_PASSWORD != 'change-me' and config.SECRET_KEY != 'put-a-long-random-string-here'
-
 def admin_accounts():
-    accounts = [(config.ADMIN_USERNAME, config.ADMIN_PASSWORD)]
-    username = getattr(config, 'ADMIN_USERNAME_2', '')
-    password = getattr(config, 'ADMIN_PASSWORD_2', '')
-    if username and password: accounts.append((username, password))
-    return accounts
+    if not config.SECRET_KEY or config.SECRET_KEY == 'put-a-long-random-string-here':
+        return []
+    primary = (config.ADMIN_USERNAME, config.ADMIN_PASSWORD)
+    secondary = (getattr(config, 'ADMIN_USERNAME_2', ''), getattr(config, 'ADMIN_PASSWORD_2', ''))
+    accounts = [primary]
+    if secondary[0] != primary[0]:
+        accounts.append(secondary)
+    return [(username.encode('utf-8'), password.encode('utf-8')) for username, password in accounts
+            if username and password and password != 'change-me']
 
 def login_required(f):
     @wraps(f)
@@ -61,22 +63,26 @@ _fails = {}
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('admin'): return redirect(url_for('admin.dashboard'))
+    accounts = admin_accounts()
     ip = request.remote_addr or '?'
     f = _fails.get(ip, [0, 0])
     if request.method == 'POST':
-        if not configured():
-            flash('Admin is disabled until you change ADMIN_PASSWORD and SECRET_KEY in config.py.', 'error')
+        if not accounts:
+            flash('Configure an admin account and SECRET_KEY in config.py to enable login.', 'error')
         elif f[0] >= 5 and time.time() < f[1]:
             flash('Too many attempts. Try again in a few minutes.', 'error')
         else:
-            username, password = request.form.get('username', ''), request.form.get('password', '')
-            ok = any(hmac.compare_digest(username, u) & hmac.compare_digest(password, p) for u, p in admin_accounts())
+            username = request.form.get('username', '').encode('utf-8')
+            password = request.form.get('password', '').encode('utf-8')
+            ok = False
+            for account, secret in accounts:
+                ok |= hmac.compare_digest(username, account) & hmac.compare_digest(password, secret)
             if ok:
                 _fails.pop(ip, None); session.clear(); session['admin'] = True; session.permanent = True
                 return redirect(url_for('admin.dashboard'))
             _fails[ip] = [f[0] + 1, time.time() + 300]
             flash('Wrong username or password.', 'error')
-    return render_template('admin/login.html', configured=configured())
+    return render_template('admin/login.html', configured=bool(accounts))
 
 @bp.route('/logout', methods=['POST'])
 def logout():
@@ -88,7 +94,7 @@ def logout():
 def dashboard():
     one = lambda sql: adb().execute(sql).fetchone()[0]
     stats = dict(days=one("SELECT COUNT(*) FROM race_days"), results=one("SELECT COUNT(*) FROM results"), laps=one("SELECT COUNT(*) FROM laps"),
-                 drivers=one("SELECT COUNT(DISTINCT COALESCE(nm.full_name, r.raw_name)) FROM results r LEFT JOIN name_map nm ON nm.raw_name=r.raw_name"))
+                 drivers=one(f"SELECT COUNT(DISTINCT {RESULT_NAME}) FROM results r {RESULT_JOIN}"))
     return render_template('admin/dashboard.html', stats=stats)
 
 # ---- race days ----
@@ -164,15 +170,19 @@ def delete_day(did):
 
 # ---- approvals: name suggestions + photos ----
 def display_names_for(display):
-    """All raw timing names that currently show as this display name."""
-    rows = adb().execute("""SELECT r.raw_name FROM results r LEFT JOIN name_map nm ON nm.raw_name=r.raw_name WHERE COALESCE(nm.full_name, r.raw_name)=?
-                            UNION SELECT e.raw_name FROM eor_results e LEFT JOIN name_map nm ON nm.raw_name=e.raw_name WHERE COALESCE(nm.full_name, e.raw_name)=?""", (display, display)).fetchall()
+    """Default timing names that currently resolve to this profile."""
+    rows = adb().execute(f"""SELECT r.raw_name FROM results r {RESULT_JOIN}
+                             WHERE COALESCE(nm.full_name, r.raw_name)=? AND {RESULT_NAME}=?
+                             UNION SELECT e.raw_name FROM eor_results e {EOR_JOIN}
+                             WHERE COALESCE(nm.full_name, e.raw_name)=? AND {EOR_NAME}=?""",
+                         (display, display, display, display)).fetchall()
     return [r[0] for r in rows]
 
 def rename_driver(old, new):
     """Point every raw name currently shown as `old` at `new` (merges if `new` already exists), carrying photo + pending items along."""
     db = adb()
     for raw in display_names_for(old): db.execute("INSERT OR REPLACE INTO name_map(raw_name, full_name) VALUES(?,?)", (raw, new))
+    db.execute("UPDATE dated_names SET full_name=? WHERE full_name=?", (new, old))
     if old != new:
         if db.execute("SELECT 1 FROM driver_photos WHERE driver_name=?", (new,)).fetchone(): db.execute("DELETE FROM driver_photos WHERE driver_name=?", (old,))
         else: db.execute("UPDATE driver_photos SET driver_name=? WHERE driver_name=?", (new, old))
@@ -185,7 +195,7 @@ def approvals():
     db = adb()
     names = []
     for s in db.execute("SELECT * FROM name_suggestions WHERE status='pending' ORDER BY created"):
-        exists = db.execute("SELECT COUNT(DISTINCT day_id) FROM results r LEFT JOIN name_map nm ON nm.raw_name=r.raw_name WHERE COALESCE(nm.full_name, r.raw_name)=?", (s['suggested'],)).fetchone()[0]
+        exists = db.execute(f"SELECT COUNT(DISTINCT day_id) FROM results r {RESULT_JOIN} WHERE {RESULT_NAME}=?", (s['suggested'],)).fetchone()[0]
         names.append(dict(s, merge_days=exists))
     photos = []
     for p in db.execute("SELECT * FROM photo_submissions WHERE status='pending' ORDER BY created"):
@@ -246,9 +256,13 @@ def remove_photo():
 @bp.route('/names')
 @login_required
 def names():
-    rows = adb().execute("""SELECT r.raw_name, nm.full_name, COUNT(DISTINCT r.day_id) days FROM results r LEFT JOIN name_map nm ON nm.raw_name=r.raw_name
+    rows = adb().execute("""SELECT r.raw_name, nm.full_name, COUNT(DISTINCT r.day_id) days,
+                                   MIN(d.race_date) first_date, MAX(d.race_date) last_date
+                            FROM results r JOIN race_days d ON d.id=r.day_id
+                            LEFT JOIN name_map nm ON nm.raw_name=r.raw_name
                             GROUP BY r.raw_name ORDER BY r.raw_name COLLATE NOCASE""").fetchall()
-    return render_template('admin/names.html', rows=rows)
+    rules = adb().execute("SELECT * FROM dated_names ORDER BY raw_name COLLATE NOCASE, start_date").fetchall()
+    return render_template('admin/names.html', rows=rows, rules=rules)
 
 @bp.route('/names/save', methods=['POST'])
 @login_required
@@ -257,11 +271,69 @@ def save_name():
     if not adb().execute("SELECT 1 FROM results WHERE raw_name=? LIMIT 1", (raw,)).fetchone(): abort(404)
     if full and not re.fullmatch(r"[\w .'\-]{2,60}", full): flash('Names can be 2-60 letters, spaces, . \' -', 'error')
     else:
-        old = adb().execute("SELECT COALESCE(nm.full_name, ?) FROM (SELECT 1) LEFT JOIN name_map nm ON nm.raw_name=?", (raw, raw)).fetchone()[0]
         if full: adb().execute("INSERT OR REPLACE INTO name_map(raw_name, full_name) VALUES(?,?)", (raw, full))
         else: adb().execute("DELETE FROM name_map WHERE raw_name=?", (raw,))
         adb().commit(); flash(f'{raw} now shows as {full or raw}.')
     return redirect(url_for('admin.names') + '#' + re.sub(r'\W', '_', raw))
+
+@bp.route('/names/date-rule', methods=['POST'])
+@login_required
+def save_date_rule():
+    raw = request.form.get('raw_name', '')
+    full = ' '.join(request.form.get('full_name', '').split())
+    start = request.form.get('start_date', '')
+    end = request.form.get('end_date', '') or '9999-12-31'
+    try:
+        if any(date.fromisoformat(value).isoformat() != value for value in (start, end)) or start > end:
+            raise ValueError
+    except ValueError:
+        flash('Enter a valid start date and an end date on or after it.', 'error')
+    else:
+        if not re.fullmatch(r"[\w .'\-]{2,60}", full):
+            flash('Enter a display name of 2 to 60 characters.', 'error')
+            return redirect(url_for('admin.names') + '#date-rules')
+        db = adb()
+        with db:
+            db.execute('BEGIN IMMEDIATE')
+            if not db.execute("SELECT 1 FROM results WHERE raw_name=? LIMIT 1", (raw,)).fetchone():
+                abort(404)
+            if db.execute("""SELECT 1 FROM dated_names
+                             WHERE raw_name=? AND start_date<=? AND end_date>=?""", (raw, end, start)).fetchone():
+                flash('This date range overlaps another rule for the same timing name.', 'error')
+            else:
+                db.execute("INSERT INTO dated_names(raw_name,start_date,end_date,full_name) VALUES(?,?,?,?)",
+                           (raw, start, end, full))
+                flash(f'{raw} will show as {full} on race days in that date range.')
+    return redirect(url_for('admin.names') + '#date-rules')
+
+
+@bp.route('/names/date-rule/<int:rule_id>/delete', methods=['POST'])
+@login_required
+def delete_date_rule(rule_id):
+    with adb() as db:
+        db.execute("DELETE FROM dated_names WHERE id=?", (rule_id,))
+    flash('Date rule removed.')
+    return redirect(url_for('admin.names') + '#date-rules')
+
+
+@bp.route('/lap-settings', methods=['GET', 'POST'])
+@login_required
+def lap_settings():
+    db = adb()
+    if request.method == 'POST':
+        try:
+            values = [(f'min_lap_{kind}', float(request.form.get(kind, ''))) for kind in ('oval', 'offroad')]
+            if any(not math.isfinite(value) or value < 0 for _, value in values):
+                raise ValueError
+        except ValueError:
+            flash('Enter a non-negative lap time in seconds for both tracks.', 'error')
+        else:
+            with db:
+                db.executemany("INSERT OR REPLACE INTO site_content(key, value) VALUES(?,?)", values)
+            flash('Lap settings saved.')
+        return redirect(url_for('admin.lap_settings'))
+    return render_template('admin/lap_settings.html', minimums=lap_minimums(db))
+
 
 # ---- news ----
 def _valid_date(s):

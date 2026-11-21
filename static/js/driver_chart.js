@@ -1,10 +1,17 @@
 (function () {
   const $ = id => document.getElementById(id);
+  let requestId = 0;
   async function load() {
-    const p = new URLSearchParams({name: DRV.name, mode: $('mode').value, metric: $('metric').value, type: $('type').value});
-    const d = await (await fetch('/api/driver/chart?' + p)).json();
+    const id = ++requestId;
+    const mode = $('mode').value;
+    const style = $('ctype').value;
+    $('rangeBox').hidden = $('rangeHelp').hidden = mode !== 'time';
+    const p = new URLSearchParams({name: DRV.name, mode, metric: $('metric').value,
+      type: $('type').value, years: mode === 'time' ? $('range').value : 'all'});
+    const d = await (await fetch(DRV.chartUrl + '?' + p)).json();
+    if (id !== requestId) return;
     Highcharts.chart('chart', {
-      chart: {type: $('ctype').value, height: 460, borderRadius: 0, animation: false},
+      chart: {type: style, zooming: {type: mode === 'time' ? 'x' : undefined}, height: 460, borderRadius: 0, animation: false},
       title: {text: null}, credits: {enabled: false},
       xAxis: {categories: d.categories, plotLines: (d.plotLines || []).map(l => ({value: l.value, color: '#c0392b', width: 2, dashStyle: 'Dash', zIndex: 4,
               label: {text: l.text, rotation: 90, textAlign: 'left', style: {color: '#c0392b', fontSize: '11px'}}}))},
@@ -15,6 +22,6 @@
       series: d.series
     });
   }
-  ['mode', 'metric', 'type', 'ctype'].forEach(i => $(i).addEventListener('change', load));
+  ['mode', 'metric', 'type', 'range', 'ctype'].forEach(i => $(i).addEventListener('change', load));
   load();
 })();

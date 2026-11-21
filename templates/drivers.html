@@ -1,13 +1,15 @@
 {% extends 'base.html' %}{% block content %}<h1>Drivers</h1>
 <form class="controls" action="{{ url_for('drivers') }}"><label>Search by name<input name="q" value="{{ term }}" autofocus style="font:inherit;padding:5px 8px;border:1px solid var(--line);display:block"></label><button>Search</button></form>
 {% if rows %}
+<div class="scroll">
 <table class="grid">
   <thead>
     <tr>
       <th style="cursor: pointer;" title="Click to sort">Driver ↕</th>
       <th style="cursor: pointer;" title="Click to sort">Race days ↕</th>
       <th style="cursor: pointer;" title="Click to sort">Classes ↕</th>
-      <th style="cursor: pointer;" title="Click to sort">Best lap ↕</th>
+      <th style="cursor: pointer;" title="Click to sort">Oval best ↕</th>
+      <th style="cursor: pointer;" title="Click to sort">Offroad best ↕</th>
     </tr>
   </thead>
   <tbody>
@@ -16,11 +18,13 @@
       <td><a href="{{ url_for('driver', name=r.name) }}">{{ r.name }}</a></td>
       <td>{{ r.days }}</td>
       <td>{{ r.classes|replace(',', ', ') }}</td>
-      <td>{{ r.best|lap }}</td>
+      <td>{{ r.best_oval|lap }}</td>
+      <td>{{ r.best_offroad|lap }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -33,8 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
         th.addEventListener('click', () => {
             const table = th.closest('table');
             const tbody = table.querySelector('tbody');
+            th.dataset.asc = th.dataset.asc === 'true' ? 'false' : 'true';
             Array.from(tbody.querySelectorAll('tr'))
-                .sort(comparer(Array.from(th.parentNode.children).indexOf(th), this.asc = !this.asc))
+                .sort(comparer(Array.from(th.parentNode.children).indexOf(th), th.dataset.asc === 'true'))
                 .forEach(tr => tbody.appendChild(tr));
         });
     });

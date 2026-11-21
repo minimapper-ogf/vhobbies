@@ -1,7 +1,32 @@
 {% extends 'base.html' %}{% block content %}{% include 'admin/_nav.html' %}
-<p class="muted">Every name exactly as it appears in the timing files. Type a full name to replace it everywhere on the site. Give two spellings (like KYLE and KLYE) the same full name and they merge into one driver. Clear the box and save to undo.</p>
-<table class="grid"><thead><tr><th>Name in timing files</th><th>Race days</th><th>Shown on site as</th></tr></thead><tbody>
-{% for r in rows %}<tr id="{{ r.raw_name|replace(' ', '_')|replace('.', '_') }}"><td><b>{{ r.raw_name }}</b></td><td>{{ r.days }}</td><td>
+<h2 id="date-rules">Separate drivers by date</h2>
+<p>Assign a distinct display name when the same timing name belongs to a different driver. The date range includes both endpoints and takes precedence over the default name. Leave the end date blank to include future races.</p>
+{% if rows %}
+<form class="controls" method="post" action="{{ url_for('admin.save_date_rule') }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>Timing name <select name="raw_name" required><option value="">Choose a name</option>
+    {% for r in rows %}<option>{{ r.raw_name }}</option>{% endfor %}
+  </select></label>
+  <label>Start date <input type="date" name="start_date" required></label>
+  <label>End date <input type="date" name="end_date"></label>
+  <label>Display name <input type="text" name="full_name" maxlength="60" required></label>
+  <button>Add date rule</button>
+</form>
+{% endif %}
+{% if rules %}
+<div class="scroll"><table class="grid"><thead><tr><th>Timing name</th><th>Start</th><th>End</th><th>Display name</th><th>Action</th></tr></thead><tbody>
+{% for rule in rules %}
+<tr><td>{{ rule.raw_name }}</td><td>{{ rule.start_date }}</td><td>{{ 'Ongoing' if rule.end_date == '9999-12-31' else rule.end_date }}</td><td>{{ rule.full_name }}</td><td>
+<form method="post" action="{{ url_for('admin.delete_date_rule', rule_id=rule.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><button>Remove rule</button>
+</form></td></tr>
+{% endfor %}
+</tbody></table></div>
+{% endif %}
+<h2>Default driver names</h2>
+<p class="muted">Give two timing names the same display name to merge their results. Clear the display name to use the original timing name.</p>
+<div class="scroll"><table class="grid"><thead><tr><th>Name in timing files</th><th>Race days</th><th>First raced</th><th>Last raced</th><th>Default display name</th></tr></thead><tbody>
+{% for r in rows %}<tr id="{{ r.raw_name|replace(' ', '_')|replace('.', '_') }}"><td><b>{{ r.raw_name }}</b></td><td>{{ r.days }}</td><td>{{ r.first_date }}</td><td>{{ r.last_date }}</td><td>
 <form class="inline" method="post" action="{{ url_for('admin.save_name') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="raw_name" value="{{ r.raw_name }}">
 <input type="text" name="full_name" value="{{ r.full_name or '' }}" placeholder="{{ r.raw_name }}" maxlength="60" style="display:inline;width:240px"> <button>Save</button></form></td></tr>
-{% else %}<tr><td colspan="3" class="muted">Add a race day first.</td></tr>{% endfor %}</tbody></table>{% endblock %}
+{% else %}<tr><td colspan="5" class="muted">Add a race day first.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}

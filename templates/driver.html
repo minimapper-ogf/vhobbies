@@ -13,7 +13,8 @@
   <div class="stat"><b>{{ s.days }}</b><span>Race days</span></div>
   <div class="stat"><b>{{ s.laps }}</b><span>Laps recorded</span></div>
   <div class="stat"><b>{{ s.avg|lap }}</b><span>Overall avg lap (s)</span></div>
-  <div class="stat"><b>{{ s.best|lap }}</b><span>Best lap (s)</span></div>
+  <div class="stat"><b>{{ s.bests.oval|lap }}</b><span>Oval best lap (s)</span></div>
+  <div class="stat"><b>{{ s.bests.offroad|lap }}</b><span>Offroad best lap (s)</span></div>
   <div class="stat"><b>{{ s.wins }}</b><span>Final wins</span></div>
   <div class="stat"><b>{{ s.podiums }}</b><span>Final podiums</span></div>
 </div>
@@ -23,10 +24,11 @@
   <label>View <select id="mode"><option value="time">Race day by race day</option><option value="vehicle">By vehicle (overall)</option></select></label>
   <label>Show <select id="metric">{% for k, v in metrics.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
   <label>Days <select id="type"><option value="all">Oval + Offroad</option><option value="offroad">Offroad only</option><option value="oval">Oval only</option></select></label>
+  <label id="rangeBox">Range <select id="range"><option value="all">All time</option><option value="1">Last year</option><option value="2">Last 2 years</option><option value="4">Last 4 years</option></select></label>
   <label>Style <select id="ctype"><option value="line">Line</option><option value="column">Columns</option></select></label>
 </div>
 <div id="chart" class="highcharts-light"></div>
-<p class="muted">Each point is one race day, evenly spaced. Vertical lines mark track changes entered by the admin.</p>
+<p class="muted" id="rangeHelp">Ranges end at the latest recorded race day for the selected track type. Vertical lines mark track changes.</p>
 
 <h2>By vehicle (all days)</h2>
 <div class="scroll"><table class="grid"><thead><tr><th>Vehicle</th><th>Type</th><th>Days</th><th>Laps</th><th>Avg lap</th><th>Median lap</th><th>Best lap</th><th>Std dev</th><th>Avg heat pos</th><th>Avg qual pos</th><th>Avg final pos</th><th>Wins</th><th>Podiums</th></tr></thead><tbody>
@@ -45,6 +47,6 @@
 {% block scripts %}
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="{{ url_for('static', filename='js/chart_theme.js') }}"></script>
-<script>window.DRV = {name: {{ name|tojson }}};</script>
+<script>window.DRV = {name: {{ name|tojson }}, chartUrl: {{ url_for('driver_chart')|tojson }}};</script>
 <script src="{{ url_for('static', filename='js/driver_chart.js') }}"></script>
 {% endblock %}

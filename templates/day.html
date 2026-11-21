@@ -12,9 +12,10 @@
     <option value="total_time">Total time</option><option value="laps">Laps completed</option><option value="position">Position</option></select></label>
   <label id="roundBox" hidden>Race <select id="round">
     {% for r in rounds %}<option value="{{ r }}">Round {{ r }}</option>{% endfor %}<option value="final" selected>Final</option></select></label>
-  <label>Style <select id="ctype"><option value="line">Line</option><option value="column">Columns</option></select></label>
-  <button id="allbtn" type="button">Hide all</button>
+  <label>Style <select id="ctype"><option value="line">Line</option><option value="column">Columns</option><option value="panels">One chart per driver</option></select></label>
+  <button id="allbtn" type="button" disabled>Hide all</button>
 </div>
+<fieldset class="driver-filter" id="driverFilter" hidden><legend>Show drivers</legend></fieldset>
 <div id="chart" class="highcharts-light"></div>
 
 <h2>{{ cls|title }} breakdown</h2>
@@ -34,6 +35,6 @@
 {% block scripts %}{% if classes %}
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="{{ url_for('static', filename='js/chart_theme.js') }}"></script>
-<script>window.CHART = {day: {{ day.id }}, cls: {{ cls|tojson }}};</script>
+<script>window.CHART = {cls: {{ cls|tojson }}, url: {{ url_for('chart', did=day.id)|tojson }}};</script>
 <script src="{{ url_for('static', filename='js/day_chart.js') }}"></script>
 {% endif %}{% endblock %}

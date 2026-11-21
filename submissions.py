@@ -4,6 +4,7 @@ from flask import request, redirect, url_for, session, flash, abort
 from PIL import Image, ImageOps
 import config
 from admin import adb
+from race_stats import RESULT_NAME, RESULT_JOIN
 from images import process_image
 
 Image.MAX_IMAGE_PIXELS = 30_000_000
@@ -23,7 +24,7 @@ def _guard():
     _hits[ip] = [t for t in _hits.get(ip, []) if now - t < 3600]
     if len(_hits[ip]) >= 5: flash('Too many submissions from you for now. Please try again later.', 'error'); return None
     name = request.form.get('driver', '')
-    ok = adb().execute("SELECT 1 FROM results r LEFT JOIN name_map nm ON nm.raw_name=r.raw_name WHERE COALESCE(nm.full_name, r.raw_name)=? LIMIT 1", (name,)).fetchone()
+    ok = adb().execute(f"SELECT 1 FROM results r {RESULT_JOIN} WHERE {RESULT_NAME}=? LIMIT 1", (name,)).fetchone()
     if not ok: abort(404)
     pending = adb().execute("SELECT (SELECT COUNT(*) FROM name_suggestions WHERE status='pending')+(SELECT COUNT(*) FROM photo_submissions WHERE status='pending')").fetchone()[0]
     if pending >= MAX_PENDING: flash('The review queue is full right now. Please try again later.', 'error'); return None

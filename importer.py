@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS eor_results(       -- end-of-round standings (eor fil
   eor_x INTEGER, eor_y INTEGER, class_name TEXT, position INTEGER,
   raw_name TEXT, laps INTEGER, total_time REAL, best_round INTEGER);
 CREATE TABLE IF NOT EXISTS name_map(raw_name TEXT PRIMARY KEY, full_name TEXT NOT NULL);   -- approved name edits
+CREATE TABLE IF NOT EXISTS dated_names(
+  id INTEGER PRIMARY KEY, raw_name TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL,
+  full_name TEXT NOT NULL, UNIQUE(raw_name, start_date), CHECK(start_date <= end_date));
 CREATE TABLE IF NOT EXISTS news(id INTEGER PRIMARY KEY, title TEXT, body TEXT, image TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS news_images(id INTEGER PRIMARY KEY, news_id INTEGER NOT NULL REFERENCES news(id) ON DELETE CASCADE, image TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS track_events(id INTEGER PRIMARY KEY, event_date TEXT, title TEXT, description TEXT, day_type TEXT);

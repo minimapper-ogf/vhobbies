@@ -1,0 +1,10 @@
+{% extends 'base.html' %}{% block content %}{% include 'admin/_nav.html' %}
+<h2>Minimum lap times</h2>
+<p>Lap-time statistics and charts use positive times at or above the minimum for each track. Set a minimum to 0 to include all positive lap times.</p>
+<form class="controls" method="post">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>Oval (seconds) <input type="number" name="oval" min="0" step="any" value="{{ minimums.oval }}" required></label>
+  <label>Offroad (seconds) <input type="number" name="offroad" min="0" step="any" value="{{ minimums.offroad }}" required></label>
+  <button>Save settings</button>
+</form>
+{% endblock %}
